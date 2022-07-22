@@ -3,7 +3,9 @@ package da.springframework.springbootwebfluxclient.handler;
 import da.springframework.springbootwebfluxclient.model.ProductDTO;
 import da.springframework.springbootwebfluxclient.services.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
@@ -48,7 +50,18 @@ public class ProductHandler {
             return productService.save(productDTO);
         }).flatMap(productDTO -> ServerResponse.created(URI.create("/api/client/".concat(productDTO.getId())))
                 .contentType(APPLICATION_JSON)
-                .bodyValue(productDTO)); //syncBody
+                .bodyValue(productDTO)) //same as .body(fromValue(productDTO))
+                .onErrorResume(throwable -> {
+                    WebClientResponseException responseException = (WebClientResponseException) throwable;
+
+                    if(responseException.getStatusCode() == HttpStatus.BAD_REQUEST){
+                        return ServerResponse.badRequest()
+                                .contentType(APPLICATION_JSON)
+                                .bodyValue(responseException.getResponseBodyAsString());
+                    }
+
+                    return Mono.error(responseException);
+                });
     }
 
     public Mono<ServerResponse> updateProduct(ServerRequest serverRequest) {
