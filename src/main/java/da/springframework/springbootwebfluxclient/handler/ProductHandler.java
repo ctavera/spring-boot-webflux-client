@@ -4,6 +4,7 @@ import da.springframework.springbootwebfluxclient.model.ProductDTO;
 import da.springframework.springbootwebfluxclient.services.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.reactive.function.server.ServerRequest;
@@ -43,18 +44,18 @@ public class ProductHandler {
         Mono<ProductDTO> productDTOMono = serverRequest.bodyToMono(ProductDTO.class);
 
         return productDTOMono.flatMap(productDTO -> {
-            if (productDTO.getCreationDate() == null) {
-                productDTO.setCreationDate(new Date());
-            }
+                    if (productDTO.getCreationDate() == null) {
+                        productDTO.setCreationDate(new Date());
+                    }
 
-            return productService.save(productDTO);
-        }).flatMap(productDTO -> ServerResponse.created(URI.create("/api/client/".concat(productDTO.getId())))
-                .contentType(APPLICATION_JSON)
-                .bodyValue(productDTO)) //same as .body(fromValue(productDTO))
+                    return productService.save(productDTO);
+                }).flatMap(productDTO -> ServerResponse.created(URI.create("/api/client/".concat(productDTO.getId())))
+                        .contentType(APPLICATION_JSON)
+                        .bodyValue(productDTO)) //same as .body(fromValue(productDTO))
                 .onErrorResume(throwable -> {
                     WebClientResponseException responseException = (WebClientResponseException) throwable;
 
-                    if(responseException.getStatusCode() == HttpStatus.BAD_REQUEST){
+                    if (responseException.getStatusCode() == HttpStatus.BAD_REQUEST) {
                         return ServerResponse.badRequest()
                                 .contentType(APPLICATION_JSON)
                                 .bodyValue(responseException.getResponseBodyAsString());
@@ -79,5 +80,18 @@ public class ProductHandler {
         String id = serverRequest.pathVariable("id");
 
         return productService.delete(id).then(ServerResponse.noContent().build());
+    }
+
+    public Mono<ServerResponse> uploadPhoto(ServerRequest serverRequest) {
+
+        String id = serverRequest.pathVariable("id");
+
+        return serverRequest.multipartData().map(stringPartMultiValueMap -> stringPartMultiValueMap.toSingleValueMap().get("file"))
+                .cast(FilePart.class)
+                .flatMap(filePart -> productService.uploadPhoto(filePart, id))
+                .flatMap(productDTO -> ServerResponse.created(URI.create("/api/client/".concat(id)))
+                        .contentType(APPLICATION_JSON)
+                        .bodyValue(productDTO));
+
     }
 }

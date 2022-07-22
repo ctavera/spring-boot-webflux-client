@@ -2,6 +2,9 @@ package da.springframework.springbootwebfluxclient.services;
 
 import da.springframework.springbootwebfluxclient.model.ProductDTO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.http.client.MultipartBodyBuilder;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -12,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.http.MediaType.MULTIPART_FORM_DATA;
 import static org.springframework.web.reactive.function.BodyInserters.fromValue;
 
 @RequiredArgsConstructor
@@ -64,5 +68,20 @@ public class ProductServiceImpl implements ProductService {
     public Mono<Void> delete(String id) {
         return webClient.delete().uri("/{id}", Collections.singletonMap("id", id))
                 .retrieve().toBodilessEntity().then();
+    }
+
+    @Override
+    public Mono<ProductDTO> uploadPhoto(FilePart filePart, String id) {
+
+        MultipartBodyBuilder builder = new MultipartBodyBuilder();
+        builder.asyncPart("file", filePart.content(), DataBuffer.class) //asyncPart for asynchronous data like Mono or Flux
+                .headers(httpHeaders -> {
+                    httpHeaders.setContentDispositionFormData("file", filePart.filename());
+                });
+
+        return webClient.post().uri("/upload/{id}", Collections.singletonMap("id", id))
+                .contentType(MULTIPART_FORM_DATA)
+                .bodyValue(builder.build()) //for synchronous data
+                .retrieve().bodyToMono(ProductDTO.class);
     }
 }

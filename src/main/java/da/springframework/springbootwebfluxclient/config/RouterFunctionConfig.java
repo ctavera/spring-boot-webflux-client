@@ -18,6 +18,7 @@ public class RouterFunctionConfig {
                 .andRoute(GET("/api/client/{id}"), productHandler::productDetail)
                 .andRoute(POST("/api/client"), productHandler::createProduct)
                 .andRoute(PUT("/api/client/{id}"), productHandler::updateProduct)
-                .andRoute(DELETE("/api/client/{id}"), productHandler::deleteProduct);
+                .andRoute(DELETE("/api/client/{id}"), productHandler::deleteProduct)
+                .andRoute(POST("/api/client/upload/{id}"), productHandler::uploadPhoto);
     }
 }
