@@ -18,7 +18,7 @@ import static org.springframework.web.reactive.function.BodyInserters.fromValue;
 @Service
 public class ProductServiceImpl implements ProductService {
 
-    private WebClient webClient;
+    private final WebClient webClient;
 
     @Override
     public Flux<ProductDTO> findAll() {
