@@ -13,6 +13,8 @@ import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.web.reactive.function.BodyInserters.fromValue;
@@ -36,7 +38,21 @@ public class ProductHandler {
         return productService.findById(id).flatMap(productDTO -> ServerResponse.ok()
                 .contentType(APPLICATION_JSON)
                 .body(fromValue(productDTO))
-                .switchIfEmpty(ServerResponse.notFound().build()));
+                .switchIfEmpty(ServerResponse.notFound().build()))
+                .onErrorResume(throwable -> {
+                    WebClientResponseException responseException = (WebClientResponseException) throwable;
+
+                    if (responseException.getStatusCode() == HttpStatus.NOT_FOUND) {
+                        Map<String, Object> body = new HashMap<>();
+                        body.put("error", "No existe el producto: ".concat(responseException.getMessage()));
+                        body.put("timestamp", new Date());
+                        body.put("status", responseException.getStatusCode().value());
+
+                        return ServerResponse.status(HttpStatus.NOT_FOUND).bodyValue(body);
+                    }
+
+                    return Mono.error(responseException);
+                });
     }
 
     public Mono<ServerResponse> createProduct(ServerRequest serverRequest) {
@@ -70,16 +86,35 @@ public class ProductHandler {
         String id = serverRequest.pathVariable("id");
         Mono<ProductDTO> productDTOMono = serverRequest.bodyToMono(ProductDTO.class);
 
-        return productDTOMono.flatMap(productDTO -> ServerResponse.created(URI.create("/api/client/".concat(id)))
-                .contentType(APPLICATION_JSON)
-                .body(productService.update(productDTO, id), ProductDTO.class));
+        return productDTOMono.flatMap(productDTO -> productService.update(productDTO, id))
+                .flatMap(productDTO -> ServerResponse.created(URI.create("/api/client/".concat(productDTO.getId())))
+                        .contentType(APPLICATION_JSON)
+                        .bodyValue(productDTO))
+                .onErrorResume(throwable -> {
+                    WebClientResponseException responseException = (WebClientResponseException) throwable;
+
+                    if (responseException.getStatusCode() == HttpStatus.NOT_FOUND) {
+                        return ServerResponse.notFound().build();
+                    }
+
+                    return Mono.error(responseException);
+                });
     }
 
     public Mono<ServerResponse> deleteProduct(ServerRequest serverRequest) {
 
         String id = serverRequest.pathVariable("id");
 
-        return productService.delete(id).then(ServerResponse.noContent().build());
+        return productService.delete(id).then(ServerResponse.noContent().build())
+                .onErrorResume(throwable -> {
+                    WebClientResponseException responseException = (WebClientResponseException) throwable;
+
+                    if (responseException.getStatusCode() == HttpStatus.NOT_FOUND) {
+                        return ServerResponse.notFound().build();
+                    }
+
+                    return Mono.error(responseException);
+                });
     }
 
     public Mono<ServerResponse> uploadPhoto(ServerRequest serverRequest) {
@@ -91,7 +126,16 @@ public class ProductHandler {
                 .flatMap(filePart -> productService.uploadPhoto(filePart, id))
                 .flatMap(productDTO -> ServerResponse.created(URI.create("/api/client/".concat(id)))
                         .contentType(APPLICATION_JSON)
-                        .bodyValue(productDTO));
+                        .bodyValue(productDTO))
+                .onErrorResume(throwable -> {
+                    WebClientResponseException responseException = (WebClientResponseException) throwable;
+
+                    if (responseException.getStatusCode() == HttpStatus.NOT_FOUND) {
+                        return ServerResponse.notFound().build();
+                    }
+
+                    return Mono.error(responseException);
+                });
 
     }
 }
