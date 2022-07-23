@@ -22,11 +22,11 @@ import static org.springframework.web.reactive.function.BodyInserters.fromValue;
 @Service
 public class ProductServiceImpl implements ProductService {
 
-    private final WebClient webClient;
+    private final WebClient.Builder webClient;
 
     @Override
     public Flux<ProductDTO> findAll() {
-        return webClient.get()
+        return webClient.build().get()
                 .accept(APPLICATION_JSON)
                 .exchangeToFlux(clientResponse -> clientResponse.bodyToFlux(ProductDTO.class));
 //                .retrieve().bodyToFlux(ProductDTO.class); // same as above
@@ -38,7 +38,7 @@ public class ProductServiceImpl implements ProductService {
         Map<String, Object> params = new HashMap<>();
         params.put("id", id);
 
-        return webClient.get().uri("/{id}", params)
+        return webClient.build().get().uri("/{id}", params)
                 .accept(APPLICATION_JSON)
                 .retrieve().bodyToMono(ProductDTO.class);
 //                .exchangeToMono(clientResponse -> clientResponse.bodyToMono(ProductDTO.class)); // same as above
@@ -47,7 +47,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public Mono<ProductDTO> save(ProductDTO productDTO) {
-        return webClient.post()
+        return webClient.build().post()
                 .accept(APPLICATION_JSON)
                 .contentType(APPLICATION_JSON)
                 .body(fromValue(productDTO))
@@ -57,7 +57,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public Mono<ProductDTO> update(ProductDTO productDTO, String id) {
 
-        return webClient.put().uri("/{id}", Collections.singletonMap("id", id))
+        return webClient.build().put().uri("/{id}", Collections.singletonMap("id", id))
                 .accept(APPLICATION_JSON)
                 .contentType(APPLICATION_JSON)
                 .body(fromValue(productDTO))
@@ -66,7 +66,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public Mono<Void> delete(String id) {
-        return webClient.delete().uri("/{id}", Collections.singletonMap("id", id))
+        return webClient.build().delete().uri("/{id}", Collections.singletonMap("id", id))
                 .retrieve().toBodilessEntity().then();
     }
 
@@ -79,7 +79,7 @@ public class ProductServiceImpl implements ProductService {
                     httpHeaders.setContentDispositionFormData("file", filePart.filename());
                 });
 
-        return webClient.post().uri("/upload/{id}", Collections.singletonMap("id", id))
+        return webClient.build().post().uri("/upload/{id}", Collections.singletonMap("id", id))
                 .contentType(MULTIPART_FORM_DATA)
                 .bodyValue(builder.build()) //for synchronous data
                 .retrieve().bodyToMono(ProductDTO.class);
